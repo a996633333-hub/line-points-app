@@ -139,12 +139,13 @@
       }
     }
 
-    function uploadImage(base64Image) {
+   function uploadImage(base64Image) {
         const status = document.getElementById('status');
         const btn = document.getElementById('btnUpload');
+        
+        // 🟢 修改這裡：換成親切的小幫手文字
         status.innerText = "小幫手正在幫你核對審查中...\n請稍後 ⏳";
         
-        // 🔴 關鍵修改： mode: 'cors' 才能讀到回傳的訊息
         fetch(GAS_API_URL, {
             method: 'POST',
             mode: 'cors',  
@@ -156,17 +157,17 @@
                 displayName: userProfile.displayName
             })
         })
-        .then(response => response.text()) // 讀取後端回應的文字
+        .then(response => response.text())
         .then(result => {
             if (result.includes("SUCCESS")) {
-                status.innerText = "✅ 核對成功";
-                alert("🎉 恭喜！審核通過，點數 +1");
+                status.innerText = "✅ 核對成功！";
+                alert("🎉 恭喜！小幫手確認無誤，點數 +1");
                 refreshPoints();
             } else {
-                // 這裡會把 AI 說的話顯示出來
                 status.innerText = "❌ 核對未通過";
-                // 把後端回傳的 "AI_SAYS: ..." 顯示在彈跳視窗
-                alert("😢 小幫手發現問題：\n\n原因：" + result.replace("AI_SAYS: ", ""));
+                // 把原本冷冰冰的 AI_SAYS 去掉，換成中文提示
+                var reason = result.replace("AI_SAYS: ", "");
+                alert("😢 小幫手發現問題：\n\n" + reason);
             }
             btn.innerText = "上傳打卡截圖";
         })
@@ -176,6 +177,3 @@
             alert("上傳過程發生錯誤，請重試。\n" + err);
         });
     }
-  </script>
-</body>
-</html>
