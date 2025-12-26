@@ -39,10 +39,11 @@
     const MY_LIFF_ID = "2008783359-9JsMUCsX";
     
     // 🔴 2. 這裡填剛剛複製的 Google Deployment URL (結尾是 /exec)
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTIwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
+const GAS_API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLi2Enc4DuvG3OsCpaBwlTDEPMdZ5R0u_iG77IUEMIYZW1-6g6rqSAACqUqLdE0sDwtzdRS93DLh-UEZOSVHIVeI-uaoNzvG_Zyvu0sQHbBQmGgq1CnmOwLAPDYdDC-KjAqHlunvoO9Q8bsWn6-_zRlyV5683osZTQftu1Oy0azjWodqpUVASXbOjgfp3NWW5zdvWAz-WUj1aS9qj6n6XhZnuKrDOGNon0aKUdHjBz2cuQ7i0Q7QKhL-GojN3jf7eH7LM2nLEWDcDURVZ8_lBJpCUVJCqQ&lib=MtdvGev2svqokKVYimC9qNr6dCzuayJHH";
 
     window.onload = async function() {
       const status = document.getElementById('status');
+      
       try {
         await liff.init({ liffId: MY_LIFF_ID });
         
@@ -55,7 +56,7 @@ const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0
           document.getElementById('btnLogin').style.display = "block";
         }
       } catch (err) {
-        status.innerText = "錯誤: " + err;
+        status.innerText = "LIFF 初始化錯誤: " + err;
       }
     };
 
@@ -70,18 +71,38 @@ const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0
            document.getElementById('photo').style.display = "block";
         }
         
-        // 透過 fetch 呼叫 Google 資料庫
-        fetch(GAS_API_URL + "?action=getPoints&userId=" + profile.userId + "&displayName=" + encodeURIComponent(profile.displayName))
-          .then(res => res.text())
-          .then(points => {
-             document.getElementById('points').innerText = points;
-             document.getElementById('status').innerText = "讀取完成";
-          })
-          .catch(err => {
-             document.getElementById('status').innerText = "資料庫連線失敗";
-          });
+        // 準備連線參數
+        const params = "?action=getPoints&userId=" + profile.userId + "&displayName=" + encodeURIComponent(profile.displayName);
+        const targetUrl = GAS_API_URL + params;
+
+        // 顯示除錯訊息
+        document.getElementById('status').innerText = "正在呼叫 Google...";
+
+        // 開始連線
+        fetch(targetUrl, {
+            method: "GET",
+            mode: "cors",  // 強制跨域模式
+            redirect: "follow" // 跟隨 Google 的重新導向
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("HTTP 狀態碼: " + response.status);
+            }
+            return response.text();
+        })
+        .then(points => {
+            // 檢查回傳是不是錯誤訊息
+            if (points.includes("Error") || points.includes("script.google.com")) {
+                 throw new Error("回傳內容異常: " + points.substring(0, 20));
+            }
+            document.getElementById('points').innerText = points;
+            document.getElementById('status').innerText = ""; // 成功清除訊息
+        })
+        .catch(err => {
+             // 🔥 這裡會顯示真正的錯誤原因
+             console.error(err);
+             document.getElementById('status').innerText = "❌ 連線失敗: " + err.message;
+             document.getElementById('status').style.color = "red";
+        });
       });
     }
-  </script>
-</body>
-</html>
