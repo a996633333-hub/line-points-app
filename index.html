@@ -3,107 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>集點卡</title>
+  <title>曬娃日集點</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
-    .card { background: white; padding: 40px 20px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-top: 30px;}
+    .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-top: 20px;}
+    
+    /* 大頭貼 */
     #photo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 4px solid #06C755; display: none; margin: 0 auto; }
-    h2 { margin: 10px 0; color: #333; font-size: 24px;}
-    #points { font-size: 80px; color: #06C755; font-weight: bold; margin: 20px 0; }
-    #status { color: #aaa; font-size: 12px; margin-top: 20px; word-break: break-all; }
-    #error-box { color: red; background: #ffe; padding: 10px; display: none; margin-top: 20px; border: 1px solid red; text-align: left; font-size: 12px;}
+    h2 { margin: 10px 0; color: #333; font-size: 22px;}
+    #points { font-size: 80px; color: #06C755; font-weight: bold; margin: 10px 0; }
+    
+    .btn { padding: 15px 0; border: none; border-radius: 50px; font-size: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; display: block; color: white; }
+    #btnLogin { background-color: #06C755; }
+    
+    /* 上傳按鈕區 */
+    .upload-box { position: relative; overflow: hidden; margin-top: 20px; }
+    .btn-upload { background-color: #333; }
+    .upload-box input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+    #status { color: #888; font-size: 13px; margin-top: 20px; }
+    #preview { max-width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
+    
+    #loginArea { display: block; }
+    #memberArea { display: none; }
+    
+    .hint { font-size: 12px; color: #666; background: #eee; padding: 10px; border-radius: 10px; margin-top: 10px; text-align: left;}
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2 id="title">集點卡讀取中...</h2>
-    
-    <div id="content" style="display:none;">
+    <h2 id="title">活動載入中...</h2>
+
+    <div id="loginArea">
+        <p>請登入參加曬娃日活動</p>
+        <button id="btnLogin" class="btn" onclick="liff.login()">LINE 帳號登入</button>
+    </div>
+
+    <div id="memberArea">
         <img id="photo" src="">
         <h2 id="name"></h2>
-        <p>目前點數</p>
+        <p style="margin:0; color:#888;">目前點數</p>
         <div id="points">...</div>
+        
+        <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+        
+        <h3>📸 截圖打卡</h3>
+        
+        <div class="hint">
+          <b>💡 審核規則：</b><br>
+          1. 請截圖您的社群打卡畫面。<br>
+          2. 內容需包含<b>「我要集點」</b>或<b>「曬娃日」</b>。<br>
+          3. 截圖需顯示<b>「發文時間」</b>(如：剛剛、今天)。
+        </div>
+        
+        <div class="upload-box">
+          <button class="btn btn-upload" id="btnUpload">上傳打卡截圖</button>
+          <input type="file" accept="image/*" onchange="handleFile(this)">
+        </div>
+        
+        <img id="preview" src="">
     </div>
     
     <p id="status">系統準備中...</p>
-    <div id="error-box"></div>
   </div>
 
   <script>
-    // ✅ 全局錯誤捕捉 (如果程式碼寫錯，這裡會顯示)
-    window.onerror = function(msg, source, lineno, colno, error) {
-        var box = document.getElementById('error-box');
-        box.style.display = 'block';
-        box.innerHTML += "🔴 程式錯誤:<br>" + msg + "<br>行數: " + lineno;
-        document.getElementById('status').innerText = "程式碼語法有誤";
-    };
-
-    // ==========================================
-    // 👇 請在下面小心填入你的資料
-    // ==========================================
-
+    // 🔴 1. 這裡填你的 LIFF ID
     const MY_LIFF_ID = "2008783359-9JsMUCsX";
     
-    // 🔴 請把網址貼在兩個引號中間，不要刪掉引號！
+    // 🔴 2. 這裡填你的 Google 網址 (從瀏覽器複製下來的那串 /exec 結尾的)
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTlwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
 
-    // ==========================================
+    let userProfile = null;
 
     window.onload = async function() {
       const status = document.getElementById('status');
-      
       try {
-        status.innerText = "1. 正在啟動 LIFF...";
         await liff.init({ liffId: MY_LIFF_ID });
+        status.innerText = "";
         
         if (liff.isLoggedIn()) {
-          status.innerText = "2. 已登入，正在連線 Google...";
-          showData();
+          showMemberData();
         } else {
-          status.innerText = "尚未登入，請重整頁面或從 LINE 開啟";
-          liff.login();
+          document.getElementById('title').innerText = "歡迎光臨";
         }
-      } catch (err) {
-        status.innerText = "LIFF 初始化失敗";
-        console.error(err);
-        document.getElementById('error-box').style.display = 'block';
-        document.getElementById('error-box').innerText = "LIFF 錯誤: " + err;
-      }
+      } catch (err) { status.innerText = "Error: " + err; }
     };
 
-    function showData() {
+    function showMemberData() {
+      document.getElementById('loginArea').style.display = "none";
+      document.getElementById('memberArea').style.display = "block";
+      document.getElementById('title').innerText = "曬娃日集點卡";
+      
       liff.getProfile().then(profile => {
-        document.getElementById('title').style.display = 'none';
-        document.getElementById('content').style.display = 'block';
+        userProfile = profile;
         document.getElementById('name').innerText = profile.displayName;
         if(profile.pictureUrl) {
            document.getElementById('photo').src = profile.pictureUrl;
            document.getElementById('photo').style.display = "block";
         }
-        
-        // 呼叫 Google
-        const params = "?action=getPoints&userId=" + profile.userId + "&displayName=" + encodeURIComponent(profile.displayName);
-        
-        fetch(GAS_API_URL + params)
+        refreshPoints();
+      });
+    }
+
+    function refreshPoints() {
+      fetch(GAS_API_URL + "?action=getPoints&userId=" + userProfile.userId)
         .then(res => res.text())
-        .then(text => {
-            if(text.includes("Error") || text.includes("script.google.com")) {
-                document.getElementById('status').innerText = "Google 回傳異常";
-                document.getElementById('error-box').style.display = 'block';
-                document.getElementById('error-box').innerText = "回傳內容: " + text.substring(0, 100);
-            } else {
-                document.getElementById('points').innerText = text;
-                document.getElementById('status').innerText = "讀取完成 ✅";
+        .then(p => document.getElementById('points').innerText = p);
+    }
+
+    function handleFile(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const status = document.getElementById('status');
+        const preview = document.getElementById('preview');
+        const btn = document.getElementById('btnUpload');
+        
+        status.innerText = "圖片處理中...";
+        btn.innerText = "處理中...";
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = function() {
+                // 壓縮圖片 (縮到 800px 寬)
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxWidth = 800;
+                const scaleSize = maxWidth / img.width;
+                canvas.width = maxWidth;
+                canvas.height = img.height * scaleSize;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+                
+                uploadImage(dataUrl);
             }
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function uploadImage(base64Image) {
+        const status = document.getElementById('status');
+        const btn = document.getElementById('btnUpload');
+        status.innerText = "🤖 AI 正在審核截圖 (約 5 秒)...";
+        
+        fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                image: base64Image,
+                userId: userProfile.userId,
+                displayName: userProfile.displayName
+            })
+        })
+        .then(() => {
+            status.innerText = "✅ 已送出審核！";
+            btn.innerText = "上傳打卡截圖";
+            
+            setTimeout(() => {
+                refreshPoints();
+                status.innerText = "更新完成";
+                alert("審核已送出！\n如果符合「關鍵字+日期」，點數將會增加。");
+            }, 4000);
         })
         .catch(err => {
-            document.getElementById('status').innerText = "連線 Google 失敗";
-            document.getElementById('error-box').style.display = 'block';
-            document.getElementById('error-box').innerText = "連線錯誤: " + err;
+            status.innerText = "上傳失敗: " + err;
+            btn.innerText = "重試";
         });
-      });
     }
   </script>
 </body>
