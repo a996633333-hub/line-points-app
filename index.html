@@ -8,26 +8,18 @@
   <style>
     body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
     .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-top: 20px;}
-    
-    /* 大頭貼 */
     #photo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 4px solid #06C755; display: none; margin: 0 auto; }
     h2 { margin: 10px 0; color: #333; font-size: 22px;}
     #points { font-size: 80px; color: #06C755; font-weight: bold; margin: 10px 0; }
-    
     .btn { padding: 15px 0; border: none; border-radius: 50px; font-size: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; display: block; color: white; }
     #btnLogin { background-color: #06C755; }
-    
-    /* 上傳按鈕區 */
     .upload-box { position: relative; overflow: hidden; margin-top: 20px; }
     .btn-upload { background-color: #333; }
     .upload-box input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-
-    #status { color: #888; font-size: 13px; margin-top: 20px; }
+    #status { color: #888; font-size: 13px; margin-top: 20px; white-space: pre-wrap;}
     #preview { max-width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
-    
     #loginArea { display: block; }
     #memberArea { display: none; }
-    
     .hint { font-size: 12px; color: #666; background: #eee; padding: 10px; border-radius: 10px; margin-top: 10px; text-align: left;}
   </style>
 </head>
@@ -50,12 +42,10 @@
         <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
         
         <h3>📸 截圖打卡</h3>
-        
         <div class="hint">
           <b>💡 審核規則：</b><br>
-          1. 請截圖您的社群打卡畫面。<br>
-          2. 內容需包含<b>「我要集點」</b>或<b>「曬娃日」</b>。<br>
-          3. 截圖需顯示<b>「發文時間」</b>(如：剛剛、今天)。
+          1. 內容需包含<b>「我要集點」</b>或<b>「曬娃日」</b>。<br>
+          2. 截圖需顯示<b>「發文時間」</b>(如：剛剛、今天)。
         </div>
         
         <div class="upload-box">
@@ -70,11 +60,11 @@
   </div>
 
   <script>
-    // 🔴 1. 這裡填你的 LIFF ID
+    // 🔴 1. 你的 LIFF ID
     const MY_LIFF_ID = "2008783359-9JsMUCsX";
     
-    // 🔴 2. 這裡填你的 Google 網址 (從瀏覽器複製下來的那串 /exec 結尾的)
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTlwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
+    // 🔴 2. 你的 Google 網址 (/exec 結尾)
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTIwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
 
     let userProfile = null;
 
@@ -129,16 +119,16 @@
             const img = new Image();
             img.src = e.target.result;
             img.onload = function() {
-                // 壓縮圖片 (縮到 800px 寬)
+                // 畫質設定 1500px, 0.9 品質
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const maxWidth = 800;
+                const maxWidth = 1500;
                 const scaleSize = maxWidth / img.width;
                 canvas.width = maxWidth;
                 canvas.height = img.height * scaleSize;
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
                 preview.src = dataUrl;
                 preview.style.display = 'block';
                 
@@ -152,11 +142,13 @@
     function uploadImage(base64Image) {
         const status = document.getElementById('status');
         const btn = document.getElementById('btnUpload');
-        status.innerText = "🤖 AI 正在審核截圖 (約 5 秒)...";
+        status.innerText = "小幫手正在幫你核對審查中...\n請稍後 ⏳";
         
+        // 🔴 關鍵修改： mode: 'cors' 才能讀到回傳的訊息
         fetch(GAS_API_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',  
+            redirect: 'follow',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({
                 image: base64Image,
@@ -164,19 +156,24 @@
                 displayName: userProfile.displayName
             })
         })
-        .then(() => {
-            status.innerText = "✅ 已送出審核！";
-            btn.innerText = "上傳打卡截圖";
-            
-            setTimeout(() => {
+        .then(response => response.text()) // 讀取後端回應的文字
+        .then(result => {
+            if (result.includes("SUCCESS")) {
+                status.innerText = "✅ 核對成功";
+                alert("🎉 恭喜！審核通過，點數 +1");
                 refreshPoints();
-                status.innerText = "更新完成";
-                alert("審核已送出！\n如果符合「關鍵字+日期」，點數將會增加。");
-            }, 4000);
+            } else {
+                // 這裡會把 AI 說的話顯示出來
+                status.innerText = "❌ 核對未通過";
+                // 把後端回傳的 "AI_SAYS: ..." 顯示在彈跳視窗
+                alert("😢 小幫手發現問題：\n\n原因：" + result.replace("AI_SAYS: ", ""));
+            }
+            btn.innerText = "上傳打卡截圖";
         })
         .catch(err => {
-            status.innerText = "上傳失敗: " + err;
+            status.innerText = "連線異常: " + err;
             btn.innerText = "重試";
+            alert("上傳過程發生錯誤，請重試。\n" + err);
         });
     }
   </script>
