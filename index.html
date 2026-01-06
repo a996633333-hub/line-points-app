@@ -19,7 +19,7 @@
     
     select { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #ff9800; background: white; margin-bottom: 10px; color: #333; font-weight: bold;}
     #status { color: #888; font-size: 13px; margin-top: 20px; white-space: pre-wrap; line-height: 1.5; }
-    #preview { max-width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
+    #preview { max-width: 100%; border-radius: 10px; margin-top: 15px; display: none; border: 3px solid red; } /* 預覽圖加紅框 */
     #loginArea { display: block; }
     #memberArea { display: none; }
     .hint { font-size: 12px; color: #666; background: #eee; padding: 10px; border-radius: 10px; margin-top: 10px; text-align: left;}
@@ -28,7 +28,8 @@
 <body>
 
   <div class="card">
-    <h2 id="title">活動載入中...</h2>
+    <!-- 🔴 這裡加了 (v3) 標記，確認是否有更新 -->
+    <h2 id="title">活動載入中... (v3)</h2>
 
     <div id="loginArea">
         <p>歡迎參加天天打卡活動</p>
@@ -54,10 +55,7 @@
 
         <div class="hint">
           <b>💡 規則：</b><br>
-          1. 請選擇正確的活動類別。<br>
-          2. 貼文請包含<b>「#產品名稱+數量」</b>。<br>
-          3. 體驗包活動請輸入<b>「日期#上線截圖送體驗包」</b>並附上截圖。<br>
-          4. 截圖需顯示<b>「發文時間」</b>。
+          系統會自動裁切圖片左側，<b>請確保您的打卡文字位於圖片右側</b>。
         </div>
         
         <div class="upload-box">
@@ -65,6 +63,7 @@
           <input type="file" accept="image/*" onchange="handleFile(this)">
         </div>
         
+        <p style="font-size:12px; color:red;">👇 預覽圖 (必須只剩右半邊) 👇</p>
         <img id="preview" src="">
     </div>
     
@@ -89,7 +88,7 @@
         if (liff.isLoggedIn()) {
           showMemberData();
         } else {
-          document.getElementById('title').innerText = "歡迎光臨";
+          document.getElementById('title').innerText = "歡迎光臨 (v3)";
         }
       } catch (err) { status.innerText = "Error: " + err; }
     };
@@ -97,7 +96,7 @@
     function showMemberData() {
       document.getElementById('loginArea').style.display = "none";
       document.getElementById('memberArea').style.display = "block";
-      document.getElementById('title').innerText = "天天打卡換好禮";
+      document.getElementById('title').innerText = "天天打卡換好禮 (v3)";
       
       liff.getProfile().then(profile => {
         userProfile = profile;
@@ -134,14 +133,14 @@
         }
     }
 
-    // 🔥 核心修改：前端圖片裁切 (Auto-Crop) 🔥
+    // 🔥 V3 超強力裁切：切掉左邊 55% 🔥
     function handleFile(input) {
       if (input.files && input.files[0]) {
         const file = input.files[0];
         const preview = document.getElementById('preview');
         const status = document.getElementById('status');
         
-        status.innerText = "🔍 正在自動裁切右半邊...";
+        status.innerText = "✂️ 正在裁切左半邊...";
         
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -151,27 +150,23 @@
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 1. 設定最大寬度
                 const maxWidth = 1000;
                 
-                // 2. 裁切邏輯：只取圖片的「右半邊」 (50% ~ 100%)
-                //    sx = source x (從哪裡開始切) = img.width * 0.4 (稍微多留一點點，從40%開始切，避免切到字)
-                const cropStartX = img.width * 0.4; 
-                const cropWidth = img.width * 0.6; // 取剩下的 60%
+                // 🔴 更激進的切割：切掉左邊 55%，只留右邊 45%
+                const cropStartX = img.width * 0.55; 
+                const cropWidth = img.width * 0.45;
 
                 const scaleSize = maxWidth / cropWidth;
                 
                 canvas.width = maxWidth;
                 canvas.height = img.height * scaleSize;
                 
-                // drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+                // 執行裁切繪圖
                 ctx.drawImage(img, cropStartX, 0, cropWidth, img.height, 0, 0, canvas.width, canvas.height);
                 
-                // 顯示預覽圖（使用者會看到圖片變窄了，這是正常的，代表切成功了）
                 preview.src = canvas.toDataURL('image/jpeg', 0.9);
                 preview.style.display = 'block';
                 
-                // 上傳切好的這半張圖
                 uploadImage(canvas.toDataURL('image/jpeg', 0.9));
             }
         }
