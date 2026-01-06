@@ -72,10 +72,10 @@
   </div>
 
   <script>
-    // 🔴 你的 LIFF ID
+    // 🔴 您的 LIFF ID
     const MY_LIFF_ID = "2008800129-BfdRdtfk";
     
-    // 🔴 你的 Google 網址
+    // 🔴 您的 Google 網址
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGpZcbo33RVCBmcVtMQmeqXuIaW-04BXK8OLfddKqwwzOoUWfny_-oUrY6AyEhRVIB/exec";
 
     let userProfile = null;
@@ -128,19 +128,20 @@
         if (type === 'event') {
             display.innerText = currentPointsData.event + " 點";
         } else if (type === 'trial') {
-            display.innerText = currentPointsData.trial + " 點"; // 🆕 統一顯示為「點」
+            display.innerText = currentPointsData.trial + " 點";
         } else {
             display.innerText = currentPointsData.regular + " 點";
         }
     }
 
+    // 🔥 核心修改：前端圖片裁切 (Auto-Crop) 🔥
     function handleFile(input) {
       if (input.files && input.files[0]) {
         const file = input.files[0];
         const preview = document.getElementById('preview');
         const status = document.getElementById('status');
         
-        status.innerText = "圖片處理中...";
+        status.innerText = "🔍 正在自動裁切右半邊...";
         
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -149,13 +150,28 @@
             img.onload = function() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const maxWidth = 1500;
-                const scaleSize = maxWidth / img.width;
+                
+                // 1. 設定最大寬度
+                const maxWidth = 1000;
+                
+                // 2. 裁切邏輯：只取圖片的「右半邊」 (50% ~ 100%)
+                //    sx = source x (從哪裡開始切) = img.width * 0.4 (稍微多留一點點，從40%開始切，避免切到字)
+                const cropStartX = img.width * 0.4; 
+                const cropWidth = img.width * 0.6; // 取剩下的 60%
+
+                const scaleSize = maxWidth / cropWidth;
+                
                 canvas.width = maxWidth;
                 canvas.height = img.height * scaleSize;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+                ctx.drawImage(img, cropStartX, 0, cropWidth, img.height, 0, 0, canvas.width, canvas.height);
+                
+                // 顯示預覽圖（使用者會看到圖片變窄了，這是正常的，代表切成功了）
                 preview.src = canvas.toDataURL('image/jpeg', 0.9);
                 preview.style.display = 'block';
+                
+                // 上傳切好的這半張圖
                 uploadImage(canvas.toDataURL('image/jpeg', 0.9));
             }
         }
@@ -191,11 +207,8 @@
         .then(result => {
             if (result.status === "SUCCESS") {
                 status.innerText = "✅ 核對成功！";
-                
                 let msg = `🎉 成功！\n\n小幫手看到了：${result.items}\n\n`;
-                // 🆕 統一顯示為獲得 N 點
                 msg += `獲得 ${result.added} 點`;
-
                 alert(msg);
                 currentPointsData = result.current;
                 updatePointsDisplay();
