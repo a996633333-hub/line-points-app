@@ -11,13 +11,14 @@
     #photo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 4px solid #ff9800; display: none; margin: 0 auto; }
     h2 { margin: 10px 0; color: #e65100; font-size: 22px;}
     
-    /* 這裡設定大大的總分 */
-    #points { font-size: 80px; color: #ff9800; font-weight: bold; margin: 10px 0; line-height: 1;}
-    #points-detail { font-size: 14px; color: #888; margin-bottom: 20px; min-height: 20px;}
+    /* 總分樣式 */
+    #points { font-size: 80px; color: #ff9800; font-weight: bold; margin: 10px 0; line-height: 1; }
+    #points-detail { font-size: 14px; color: #888; margin-bottom: 20px; min-height: 20px; }
 
     .btn { padding: 15px 0; border: none; border-radius: 50px; font-size: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; display: block; color: white; }
     #btnLogin { background-color: #ff9800; }
     
+    /* 下拉選單樣式 */
     select { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #ff9800; background: white; margin-bottom: 10px; color: #333; font-weight: bold;}
 
     .upload-box { position: relative; overflow: hidden; margin-top: 10px; }
@@ -47,7 +48,7 @@
         <p style="margin:0; color:#888;">目前累積點數</p>
         
         <!-- 顯示總分 -->
-        <div id="points">0</div>
+        <div id="points">...</div>
         <!-- 顯示明細 -->
         <div id="points-detail"></div>
         
@@ -55,8 +56,9 @@
         
         <h3>🎁 選擇打卡活動</h3>
         
+        <!-- ✅ 選單回來了！ -->
         <select id="taskSelect">
-            <option value="event">🔥 益生菌打卡換禮物</option>
+            <option value="event">🔥 1-2月限定：益生菌打卡換禮物</option>
             <option value="regular">👶 乖寶寶打卡換購物金</option>
         </select>
 
@@ -68,7 +70,7 @@
         </div>
         
         <div class="upload-box">
-          <button class="btn btn-upload" id="btnUpload">上傳截圖</button>
+          <button class="btn btn-upload" id="btnUpload">上傳打卡截圖</button>
           <input type="file" accept="image/*" onchange="handleFile(this)">
         </div>
         
@@ -79,11 +81,10 @@
   </div>
 
   <script>
-    // 🔴 1. 你的 LIFF ID
-    const MY_LIFF_ID = "2008800129-BfdRdtfk";
-    
-    // 🔴 2. 你的 Google 網址
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGpZcbo33RVCBmcVtMQmeqXuIaW-04BXK8OLfddKqwwzOoUWfny_-oUrY6AyEhRVIB/exec";
+    // 👇👇👇 請務必確認這裡的資料正確 👇👇👇
+    const MY_LIFF_ID = "2008783359-9JsMUCsX"; 
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTIwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
+    // 👆👆👆👆👆👆
 
     let userProfile = null;
 
@@ -116,7 +117,7 @@
       });
     }
 
-    // ✅ 自動加總分數
+    // ✅ 自動加總分數 (修復 undefined 問題)
     function refreshPoints() {
       fetch(GAS_API_URL + "?action=getPoints&userId=" + userProfile.userId)
         .then(res => res.json()) 
@@ -124,21 +125,20 @@
             let total = 0;
             let detailText = "";
             
-            // 檢查是否為空物件
-            if (Object.keys(data).length === 0) {
-               total = 0;
-               detailText = "(尚無紀錄)";
+            // 如果後端回傳的是字串 "0"，要處理一下
+            if (typeof data === 'string' || typeof data === 'number') {
+                total = parseInt(data);
             } else {
-               for (const [key, value] of Object.entries(data)) {
-                  let p = parseInt(value) || 0;
-                  total += p;
-                  if(p > 0) detailText += `${key}:${p}點  `;
-               }
+                // 如果是物件 {Event_Points: 10, Regular_Points: 5}
+                for (const [key, value] of Object.entries(data)) {
+                    let p = parseInt(value) || 0;
+                    total += p;
+                    // 只顯示大於0的明細
+                    if(p > 0) detailText += `${key}:${p}  `;
+                }
             }
             
-            // 顯示總分
             document.getElementById('points').innerText = total;
-            // 顯示明細
             document.getElementById('points-detail').innerText = detailText;
         })
         .catch(err => {
@@ -182,6 +182,8 @@
     function uploadImage(base64Image) {
         const status = document.getElementById('status');
         const btn = document.getElementById('btnUpload');
+        
+        // ✅ 取得選單的值 (把選單功能加回來了)
         const category = document.getElementById('taskSelect').value;
         
         status.innerText = `小幫手正在核對【${category}】...\n請稍後 ⏳`;
@@ -195,7 +197,7 @@
                 image: base64Image,
                 userId: userProfile.userId,
                 displayName: userProfile.displayName,
-                category: category
+                category: category // ✅ 傳送選單類別
             })
         })
         .then(response => response.text())
@@ -213,7 +215,7 @@
                 var reason = result.replace("AI_SAYS: ", "").replace("NO: ", "");
                 alert("😢 審核未通過：\n\n" + reason);
             }
-            btn.innerText = "上傳截圖";
+            btn.innerText = "上傳打卡截圖";
         })
         .catch(err => {
             status.innerText = "連線異常: " + err;
