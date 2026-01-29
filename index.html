@@ -11,10 +11,11 @@
     #photo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 4px solid #ff9800; display: none; margin: 0 auto; }
     h2 { margin: 10px 0; color: #e65100; font-size: 22px;}
     
-    /* 點數列表樣式 */
-    #points-list { text-align: left; background: #fff3e0; padding: 15px; border-radius: 10px; margin: 10px 0; min-height: 50px;}
-    .point-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 16px; color: #555; }
-    .point-val { font-weight: bold; color: #e65100; }
+    /* 大大的總分 */
+    #points { font-size: 80px; color: #ff9800; font-weight: bold; margin: 10px 0; }
+    
+    /* 小小的明細 (選用) */
+    #points-detail { font-size: 12px; color: #888; margin-bottom: 20px; }
 
     .btn { padding: 15px 0; border: none; border-radius: 50px; font-size: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; display: block; color: white; }
     #btnLogin { background-color: #ff9800; }
@@ -45,16 +46,19 @@
     <div id="memberArea">
         <img id="photo" src="">
         <h2 id="name"></h2>
+        <p style="margin:0; color:#888;">目前累積點數</p>
         
-        <!-- 顯示各項任務點數 -->
-        <div id="points-list">載入點數中...</div>
+        <!-- 這裡顯示總分 -->
+        <div id="points">...</div>
+        <!-- 這裡顯示明細 -->
+        <div id="points-detail"></div>
         
         <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
         
         <h3>🎁 選擇打卡活動</h3>
         
         <select id="taskSelect">
-            <option value="event">🔥 益生菌打卡換禮物</option>
+            <option value="event">🔥 1-2月限定：益生菌打卡換禮物</option>
             <option value="regular">👶 乖寶寶打卡換購物金</option>
         </select>
 
@@ -66,7 +70,7 @@
         </div>
         
         <div class="upload-box">
-          <button class="btn btn-upload" id="btnUpload">上傳截圖</button>
+          <button class="btn btn-upload" id="btnUpload">上傳打卡截圖</button>
           <input type="file" accept="image/*" onchange="handleFile(this)">
         </div>
         
@@ -80,7 +84,7 @@
     // 🔴 1. 你的 LIFF ID
     const MY_LIFF_ID = "2008800129-BfdRdtfk";
     
-    // 🔴 2. 你的 Google 網址 (天天打卡換好禮的那個)
+    // 🔴 2. 你的 Google 網址
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGpZcbo33RVCBmcVtMQmeqXuIaW-04BXK8OLfddKqwwzOoUWfny_-oUrY6AyEhRVIB/exec";
 
     let userProfile = null;
@@ -114,24 +118,30 @@
       });
     }
 
-    // ✅ 查分數：使用 JSON 格式 (因為後端回傳 JSON)
+    // ✅ 修復版：自動加總所有分數
     function refreshPoints() {
       fetch(GAS_API_URL + "?action=getPoints&userId=" + userProfile.userId)
-        .then(res => res.json()) 
+        .then(res => res.json()) // 讀取 JSON 物件
         .then(data => {
-            let html = "";
-            if (Object.keys(data).length === 0) {
-                html = "<div style='text-align:center'>尚無點數紀錄</div>";
-            } else {
-                for (const [key, value] of Object.entries(data)) {
-                    html += `<div class="point-item"><span>${key}</span><span class="point-val">${value} 點</span></div>`;
-                }
+            let total = 0;
+            let detailText = "";
+            
+            // 把每個產品的分數加起來
+            for (const [key, value] of Object.entries(data)) {
+                let p = parseInt(value) || 0;
+                total += p;
+                if(p > 0) detailText += `${key}:${p}點  `;
             }
-            document.getElementById('points-list').innerHTML = html;
+            
+            // 顯示總分
+            document.getElementById('points').innerText = total;
+            // 顯示小字明細 (例如：益生菌:2點 葉黃素:1點)
+            document.getElementById('points-detail').innerText = detailText;
         })
         .catch(err => {
             console.error(err);
-            document.getElementById('points-list').innerText = "點數讀取失敗";
+            // 如果出錯或是新用戶，顯示 0
+            document.getElementById('points').innerText = "0";
         });
     }
 
@@ -167,7 +177,6 @@
       }
     }
 
-    // ✅ 上傳照片：使用 Text 格式 (因為後端回傳純文字)
     function uploadImage(base64Image) {
         const status = document.getElementById('status');
         const btn = document.getElementById('btnUpload');
@@ -187,7 +196,7 @@
                 category: category
             })
         })
-        .then(response => response.text()) // ⚠️ 這裡一定要是 text()
+        .then(response => response.text())
         .then(result => {
             if (result.includes("SUCCESS")) {
                 var parts = result.split(":");
@@ -202,7 +211,7 @@
                 var reason = result.replace("AI_SAYS: ", "").replace("NO: ", "");
                 alert("😢 審核未通過：\n\n" + reason);
             }
-            btn.innerText = "上傳截圖";
+            btn.innerText = "上傳打卡截圖";
         })
         .catch(err => {
             status.innerText = "連線異常: " + err;
