@@ -11,14 +11,11 @@
     #photo { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 4px solid #ff9800; display: none; margin: 0 auto; }
     h2 { margin: 10px 0; color: #e65100; font-size: 22px;}
     
-    /* 總分樣式 */
     #points { font-size: 80px; color: #ff9800; font-weight: bold; margin: 10px 0; line-height: 1; }
-    #points-detail { font-size: 14px; color: #888; margin-bottom: 20px; min-height: 20px; }
 
     .btn { padding: 15px 0; border: none; border-radius: 50px; font-size: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; display: block; color: white; }
     #btnLogin { background-color: #ff9800; }
     
-    /* 下拉選單樣式 */
     select { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #ff9800; background: white; margin-bottom: 10px; color: #333; font-weight: bold;}
 
     .upload-box { position: relative; overflow: hidden; margin-top: 10px; }
@@ -49,14 +46,11 @@
         
         <!-- 顯示總分 -->
         <div id="points">...</div>
-        <!-- 顯示明細 -->
-        <div id="points-detail"></div>
         
         <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
         
         <h3>🎁 選擇打卡活動</h3>
         
-        <!-- ✅ 選單回來了！ -->
         <select id="taskSelect">
             <option value="event">🔥 1-2月限定：益生菌打卡換禮物</option>
             <option value="regular">👶 乖寶寶打卡換購物金</option>
@@ -81,10 +75,11 @@
   </div>
 
   <script>
-    // 👇👇👇 請務必確認這裡的資料正確 👇👇👇
-    const MY_LIFF_ID = "2008783359-9JsMUCsX"; 
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycby4_wyRmzldT5ueF-E0jTA0qPBTIwJTgWHxBkzSldHsSiApLbfSNuHZTA1fOGMfk9DW/exec";
-    // 👆👆👆👆👆👆
+    // 🔴 1. 你的 LIFF ID
+    const MY_LIFF_ID = "2008800129-BfdRdtfk";
+    
+    // 🔴 2. 你的 Google 網址
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwGpZcbo33RVCBmcVtMQmeqXuIaW-04BXK8OLfddKqwwzOoUWfny_-oUrY6AyEhRVIB/exec";
 
     let userProfile = null;
 
@@ -117,29 +112,12 @@
       });
     }
 
-    // ✅ 自動加總分數 (修復 undefined 問題)
+    // ✅ 修正版：直接讀取純文字分數 (解決 undefined 問題)
     function refreshPoints() {
       fetch(GAS_API_URL + "?action=getPoints&userId=" + userProfile.userId)
-        .then(res => res.json()) 
-        .then(data => {
-            let total = 0;
-            let detailText = "";
-            
-            // 如果後端回傳的是字串 "0"，要處理一下
-            if (typeof data === 'string' || typeof data === 'number') {
-                total = parseInt(data);
-            } else {
-                // 如果是物件 {Event_Points: 10, Regular_Points: 5}
-                for (const [key, value] of Object.entries(data)) {
-                    let p = parseInt(value) || 0;
-                    total += p;
-                    // 只顯示大於0的明細
-                    if(p > 0) detailText += `${key}:${p}  `;
-                }
-            }
-            
-            document.getElementById('points').innerText = total;
-            document.getElementById('points-detail').innerText = detailText;
+        .then(res => res.text()) // 讀取 Text
+        .then(p => {
+            document.getElementById('points').innerText = p;
         })
         .catch(err => {
             console.error(err);
@@ -182,8 +160,6 @@
     function uploadImage(base64Image) {
         const status = document.getElementById('status');
         const btn = document.getElementById('btnUpload');
-        
-        // ✅ 取得選單的值 (把選單功能加回來了)
         const category = document.getElementById('taskSelect').value;
         
         status.innerText = `小幫手正在核對【${category}】...\n請稍後 ⏳`;
@@ -197,7 +173,7 @@
                 image: base64Image,
                 userId: userProfile.userId,
                 displayName: userProfile.displayName,
-                category: category // ✅ 傳送選單類別
+                category: category
             })
         })
         .then(response => response.text())
